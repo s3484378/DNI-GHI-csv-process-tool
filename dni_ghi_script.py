@@ -186,7 +186,7 @@ latitude and longitude to convert the UTC time to local time
             print("Longitude: {}".format(data[0][3]))
 
         # Write csv file
-        with open("{},{}_{}_p.csv".format(lat_input, lon_input,directory), 'w', newline='') as csv_obj:
+        with open("{},{}_{}.csv".format(lat_input, lon_input,directory), 'w', newline='') as csv_obj:
             csv_wr = csv.writer(csv_obj)
             if tz_found:
                 csv_wr.writerow(("UTC Time", "Local Time {}".format(local_timezone), "{} Value".format(directory.upper()), "Closest Latitude:",data[0][2], "Closest Longitude:",data[0][3]))
