@@ -1,3 +1,4 @@
 # Gitignore data folders due to size
-*-2013-*/
+DNI-2013/
+GHI-2013/
 *.csv
