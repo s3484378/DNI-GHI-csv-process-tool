@@ -38,3 +38,6 @@ python dni_ghi_script.py
 -37.0,144.0_dni.csv
 -37.0,144.0_ghi.csv
 ```
+
+### Additional Info
+This script implements multiprocessing as scraping through each file is relatively resource intensive on both the CPU and HDD. With a relatively new quad core i7, the script processes roughly 60 files per second and completes in less than 5 minutes. Note 1 year of DNI and GHI Australia data is roughly 35GB.
