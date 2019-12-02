@@ -1,4 +1,4 @@
-# DNI-GHI-csv-process-tool
+# DNI GHI solar data processing tool
 Command line script to convert DNI/GHI data into a csv file for a given latitude and longitude
 
 ## Description
@@ -23,11 +23,6 @@ latitude and longitude to convert the UTC time to local time\
 
 ## Example Usage/Output
 From a command line:
-### Run the precompiled exe (no dependencies required) and follow the prompts
-```sh
-.\dni_ghi_script.exe
-```
-
 ### Run the python file directly (tested in Python 3.7) and follow the prompts
 ```sh
 python dni_ghi_script.py
@@ -41,3 +36,8 @@ python dni_ghi_script.py
 
 ### Additional Info
 This script implements multiprocessing as scraping through each file is relatively resource intensive on both the CPU and HDD. With a relatively new quad core i7, the script processes roughly 60 files per second and completes in less than 5 minutes. Note 1 year of DNI and GHI Australia data is roughly 35GB.
+
+## Python Dependencies 3.7.4
+```bash
+pip install pytz tqdm timezonefinder
+```
