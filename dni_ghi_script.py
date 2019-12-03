@@ -18,6 +18,12 @@ stop_script = False
 # Multiprocessing max simultaneous tasks (number of cores on PC)
 max_processes = cpu_count()
 
+# Error Handle Function - all error messages routed through here.
+def error_handle(err_msg = None, exit_prog = False):
+    if err_msg: print("Error: {}".format(err_msg))
+    if exit_prog:
+        exit()
+
 # def process_file(filename, lat, lon):
 def process_file(arg):
     filename = arg[0]
@@ -28,8 +34,7 @@ def process_file(arg):
             dt = datetime.strptime(os.path.basename(filename).replace("solar_ghi_", '').replace("solar_dni_", '').replace("UT.txt", '').replace('_', ''), "%Y%m%d%H").replace(tzinfo=pytz.timezone('UTC'))
             if debug: print("Timestamp: {}".format(dt))
         except:
-            print("Error converting datetime value for {}!".format(filename))
-            exit()
+            error_handle(err_msg="Error converting datetime value for {}!".format(filename), exit_prog=True)
         reader = csv.reader(f, delimiter=' ')
         ncols = 0
         nrows = 0
@@ -121,23 +126,20 @@ latitude and longitude to convert the UTC time to local time
     try:
         tz = TimezoneFinder(in_memory=True)
     except:
-        print("Timezone Finder Error - exiting")
-        exit()
+        error_handle(err_msg="Timezone Finder Error - exiting", exit_prog=True)
 
     # Get Lat and Long value from user input
     try:
         lat_input = float(input("Enter Latitude: "))
         lon_input = float(input("Enter Longitude: "))
     except:
-        print("Invalid lat or long value!")
-        exit()
+        error_handle(err_msg="Invalid lat or long value!", exit_prog=True)
     # Get year input
     try:
         year = int(input("Year: "))
         if len(str(year)) != 4: raise Exception()
     except:
-        print("Invalid year, make sure you enter the 4 digit century value, eg 2013")
-        exit()
+        error_handle(err_msg="Invalid year, make sure you enter the 4 digit century value, eg 2013", exit_prog=True)
 
     # Debug print CPU cores available
     if debug == 1: print("Available CPU Cores:{}".format(max_processes))
@@ -154,51 +156,54 @@ latitude and longitude to convert the UTC time to local time
             files = [["{}-{}/{}".format(directory.upper(),year,i.name), lat_input, lon_input] for i in os.scandir("{}-{}".format(directory.upper(), year))]
         except WindowsError as e:
             if e.winerror == 3:
-                print("No DNI/GHI data folder for year {}, check that direcory exists.".format(year))
-                exit()
+                error_handle(err_msg="No {} data folder for year {}, check that direcory exists.".format(directory.upper(), year))
             else:
-                print(e)
-                exit()
+                error_handle(err_msg=str(e), exit_prog=True)
+        else:
+            # Create processes for DNI processing
+            og_sign_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+            p = Pool(processes=max_processes)
+            signal.signal(signal.SIGINT, og_sign_handler)
+            print("\nProcessing {} files:".format(directory.upper())) # Print the current processing directory
+            data = list(tqdm(p.imap_unordered(process_file, files), total=len(files), smoothing=0.5, ncols=100, dynamic_ncols=True))
+            p.close()
 
-        # Create processes for DNI processing
-        og_sign_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        p = Pool(processes=max_processes)
-        signal.signal(signal.SIGINT, og_sign_handler)
-        print("\nProcessing {} files:".format(directory)) # Print the current processing directory
-        data = list(tqdm(p.imap_unordered(process_file, files), total=len(files), smoothing=0.5, ncols=100, dynamic_ncols=True))
-        p.close()
+            print("")
 
-        # Sort the values as they may be out of order from multiprocessing
-        data.sort()
+            # Sort the values as they may be out of order from multiprocessing
+            data.sort()
 
-        # Get Local timezone
-        tz_found = False
-        try:
-            if debug >= 1:
-                # Debug print closest lat and long
-                print("Closest Lat: {}".format(data[0][2]))
-                print("Closest Lng: {}".format(data[0][3]))
-            local_timezone = pytz.timezone(tz.timezone_at(lat=data[0][2],lng=data[0][3]))
-            tz_found = True
-        except:
-            print("Couldn't find local timezone for the coordinates:")
-            print("Latitude: {}".format(data[0][2]))
-            print("Longitude: {}".format(data[0][3]))
-
-        # Write csv file
-        with open("{},{}_{}.csv".format(lat_input, lon_input,directory), 'w', newline='') as csv_obj:
-            csv_wr = csv.writer(csv_obj)
-            if tz_found:
-                csv_wr.writerow(("UTC Time", "Local Time {}".format(local_timezone), "{} Value".format(directory.upper()), "Closest Latitude:",data[0][2], "Closest Longitude:",data[0][3]))
+            if not data:
+                error_handle(err_msg="No valid data in {} Folder".format(directory.upper()))
             else:
-                csv_wr.writerow(("UTC Time", "Local Time UNKNOWN", "{} Value".format(directory.upper()), "Closest Latitude:",data[0][2], "Closest Longitude:",data[0][3]))
-            for f in data:
-                utc_time = f[0]
-                if tz_found:
-                    local_time = utc_time.astimezone(pytz.timezone(tz.timezone_at(lat=f[2],lng=f[3])))
-                    csv_wr.writerow([utc_time.replace(tzinfo=None), local_time.replace(tzinfo=None), f[1]])
-                else:
-                    csv_wr.writerow([utc_time.replace(tzinfo=None), "", f[1]])
+                # Get Local timezone
+                tz_found = False
+                try:
+                    if debug >= 1:
+                        # Debug print closest lat and long
+                        print("Closest Lat: {}".format(data[0][2]))
+                        print("Closest Lng: {}".format(data[0][3]))
+                    local_timezone = pytz.timezone(tz.timezone_at(lat=data[0][2],lng=data[0][3]))
+                    tz_found = True
+                except:
+                    error_handle(err_msg="Couldn't find local timezone for the coordinates:")
+                    error_handle(err_msg="Latitude: {}".format(data[0][2]))
+                    error_handle(err_msg="Longitude: {}".format(data[0][3]))
+
+                # Write csv file
+                with open("{},{}_{}.csv".format(lat_input, lon_input,directory), 'w', newline='') as csv_obj:
+                    csv_wr = csv.writer(csv_obj)
+                    if tz_found:
+                        csv_wr.writerow(("UTC Time", "Local Time {}".format(local_timezone), "{} Value".format(directory.upper()), "Closest Latitude:",data[0][2], "Closest Longitude:",data[0][3]))
+                    else:
+                        csv_wr.writerow(("UTC Time", "Local Time UNKNOWN", "{} Value".format(directory.upper()), "Closest Latitude:",data[0][2], "Closest Longitude:",data[0][3]))
+                    for f in data:
+                        utc_time = f[0]
+                        if tz_found:
+                            local_time = utc_time.astimezone(pytz.timezone(tz.timezone_at(lat=f[2],lng=f[3])))
+                            csv_wr.writerow([utc_time.replace(tzinfo=None), local_time.replace(tzinfo=None), f[1]])
+                        else:
+                            csv_wr.writerow([utc_time.replace(tzinfo=None), "", f[1]])
 
 
-    print("Completed in {} seconds".format(datetime.now() - start_time))
+    print("\nCompleted in {} seconds".format(datetime.now() - start_time))
