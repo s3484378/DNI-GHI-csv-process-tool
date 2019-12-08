@@ -119,7 +119,7 @@ YYYY is the year with century representaiton, eg 2013
 MM is the zero-padded month value, eg 01 for January
 DD is the zero-padded day of the month, eg 01 for the 1st
 HH is the zero-padded hour (24 hour clock) of the day, eg 00, 13 for 12:00AM, 01:00PM
-UT represents universal time, this script attempt to find the local timezone for the given
+UT represents universal time, this script attempts to find the local timezone for the given
 latitude and longitude to convert the UTC time to local time
 ''')
 
